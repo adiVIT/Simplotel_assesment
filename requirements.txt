@@ -1,0 +1,9 @@
+transformers[sentencepiece]
+torch
+openai
+python-dotenv
+google-cloud-texttospeech
+pygame
+pyttsx3
+# Add to existing requirements
+sqlite3

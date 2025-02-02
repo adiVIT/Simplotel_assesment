@@ -71,6 +71,18 @@ class DatabaseManager:
             logging.error(f"Error fetching user details: {str(e)}")
             return None
 
+
+    def get_user_id(self,username):
+        try:
+            cursor = self.conn.cursor()
+            cursor.execute("SELECT user_id FROM users WHERE username = ?", (username,))
+            result = cursor.fetchone()
+            # self.conn.close()
+            return result[0] if result else None
+        except sqlite3.Error as e:
+            print(f"SQLite error: {e}")
+            return None
+    
     def get_balance(self, user_id):
         """Get account balance for a user"""
         try:
@@ -203,7 +215,9 @@ class DatabaseManager:
         try:
             from_user = self._get_user_details(from_username)
             to_user = self._get_user_details(to_username)
-
+            logging.info(f"from user : {from_user}")
+            logging.info(f"to user : {to_user}")
+            logging.info(f"username : {from_username}")
             if not from_user or not to_user:
                 return "One or both users not found"
 

@@ -40,9 +40,11 @@ class ResponseGenerator:
             print(f"Error generating response: {str(e)}")
             return RESPONSE_TEMPLATES.get(intent, RESPONSE_TEMPLATES["unknown"])
 
+    # src/response_generator.py
     def _get_system_message(self, intent):
         """Returns appropriate system message based on intent"""
         system_messages = {
+            "show_users": "You are a banking assistant. Show the list of all users in the system.",
             "greeting": "You are a friendly banking assistant. Keep responses brief and welcoming.",
             "balance_inquiry": "You are a banking assistant. Explain that you'll check their balance.",
             "transaction_history": "You are a banking assistant. Explain that you'll retrieve their transactions.",

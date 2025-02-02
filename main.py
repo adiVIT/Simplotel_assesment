@@ -1,12 +1,16 @@
+import json
 import time
 import os
+import openai
 from src.speech_to_text.recorder import AudioRecorder
 from src.speech_to_text.transcriber import Transcriber
 from src.nlp_processing.intent_classifier import IntentClassifier
 from src.response_gen.response_generator import ResponseGenerator
 from src.text_to_speech.tts_generator import TTSGenerator
 from src.database.db_manager import DatabaseManager
+import logging
 
+logging.basicConfig(level=logging.INFO, filename='app.log', filemode='w', format='%(asctime)s - %(levelname)s - %(message)s')
 
 class VoiceBot:
     def __init__(self):
@@ -17,10 +21,13 @@ class VoiceBot:
         self.response_generator = ResponseGenerator()
         self.tts_generator = TTSGenerator()
         self.db = DatabaseManager()
-        self.user_id = 1  # Demo user ID
+        self.user_id = None
+        self.username= None
         # In main.py, update the commands dictionary in __init__
         # In main.py, update the commands dictionary in __init__
         self.commands = {
+            'change user': self.change_user,
+            'this is':self.find_current_user,
             'balance': self.check_balance,
             'transaction': self.check_transactions,
             'help': self.show_help,
@@ -30,6 +37,7 @@ class VoiceBot:
             'transfer': self.transfer_money,
             'send': self.transfer_money  # Alias for transfer
         }
+
 
 
     def create_new_user(self, text):
@@ -49,33 +57,63 @@ class VoiceBot:
         except Exception as e:
             return f"Error creating user: {str(e)}"
 
+
+
+    
     def transfer_money(self, text):
-        """Handle money transfer command"""
+        """Handle money transfer command using OpenAI extraction"""
+        if self.user_id is None:
+            return (f"Please tell the name of user like 'This is user name' ")
         try:
-            # Extract amount and username from command
-            import re
-            amount_match = re.search(r'\$?(\d+(?:\.\d{2})?)', text)
-            user_match = re.search(r'to ([a-zA-Z]+)', text.lower())
+            # Define the prompt to extract amount and username
+            prompt = f"Extract the amount and recipient username from this text: '{text}'. Return a valid JSON in this format: {{\"username\": \"<recipient>\", \"amount\": <amount>}}. make sure nothing extra is sent in response apart from json "
             
-            if amount_match and user_match:
-                amount = float(amount_match.group(1))
-                to_username = user_match.group(1)
-                
-                # Get current username (demo user for now)
-                from_username = 'demo_user'
-                
-                result = self.db.transfer_money(from_username, to_username, amount)
-                return result
-            
-            return "Please specify amount and recipient"
+            logging.info("Extracting data using OpenAI...")
+
+            # Call OpenAI API (Updated for latest version)
+            response = openai.chat.completions.create(
+                model="gpt-3.5-turbo",
+                messages=[
+                    {"role": "system", "content": "You are a helpful assistant."},
+                    {"role": "user", "content": prompt},
+                ]
+            )
+
+            logging.info(f"API Response: {response}")
+
+            # Extract response content
+            extracted_text = response.choices[0].message.content.strip()
+            logging.info(f"extracted_text {extracted_text}")
+            # Convert extracted response to JSON
+            extracted_data = json.loads(extracted_text)
+            logging.info(f"username {extracted_text}")
+            logging.info(f"amount {extracted_data}")
+            # Get extracted username and amount
+            to_username = extracted_data.get("username", "").strip()
+            amount = float(extracted_data.get("amount", 0))
+            from_username=self.username
+            # Validate extracted data
+            if to_username and amount > 0:
+                return self.db.transfer_money(from_username, to_username.lower(), amount)
+
+            return "Invalid input. Please specify both amount and recipient."
+
+        except json.JSONDecodeError:
+            return "Error extracting data. Ensure the input is correctly formatted."
         except Exception as e:
             return f"Error processing transfer: {str(e)}"
 
+    
     def check_balance(self, text):
+        if self.user_id is None:
+            return (f"Please tell the name of user like 'This is user name' ")
+        logging.info(f"this is the text {text}")
         balance = self.db.get_balance(self.user_id)
         return f"Your current balance is ${balance:.2f}"
 
     def check_transactions(self, text):
+        if self.user_id is None:
+            return (f"Please tell the name of user like 'This is user name' ")
         transactions = self.db.get_transactions(self.user_id, limit=5)
         if not transactions:
             return "You have no recent transactions."
@@ -86,6 +124,8 @@ class VoiceBot:
         return response
 
     def make_deposit(self, text):
+        if self.user_id is None:
+            return (f"Please tell the name of user like 'This is user name' ")
         try:
             # Try to extract amount from text
             import re
@@ -99,6 +139,8 @@ class VoiceBot:
             return "Error processing deposit. Please try again."
 
     def make_withdrawal(self, text):
+        if self.user_id is None:
+            return (f"Please tell the name of user like 'This is user name' ")
         try:
             import re
             amounts = re.findall(r'\$?(\d+(?:\.\d{2})?)', text)
@@ -109,6 +151,72 @@ class VoiceBot:
             return "Please specify the amount to withdraw."
         except Exception as e:
             return "Error processing withdrawal. Please try again."
+
+    def change_user(self, text):
+        try:
+            # OpenAI GPT model to identify the username
+                
+            prompt = f"Extract the changed username from this text :'{text}' and just only give username in response nothing else"
+            logging.info("im here ")
+            # Call OpenAI API to generate a response (updated for new API interface)
+            response = openai.chat.completions.create(
+                model="gpt-3.5-turbo",  # Use an appropriate model
+                messages=[
+                    {"role": "system", "content": "You are a helpful assistant."},
+                    {"role": "user", "content": prompt},
+                ],
+            )
+            logging.info(f"response {response}")
+            
+            # Parse the response
+            extracted_username = response.choices[0].message.content.strip().lower()
+            logging.info(f"username {extracted_username}")
+            # If we found a valid username, retrieve user details
+            if extracted_username:
+                user_details = self.db.get_user_by_username(extracted_username)
+                if user_details:
+                    self.user_id=user_details['user_id']
+                    self.username=extracted_username
+                    return f"Current user: {extracted_username} (ID: {user_details['user_id']})"
+                else:
+                    return "User not found."
+            return "No valid username detected in the input."
+        
+        except Exception as e:
+            return f"Error processing the current user. Details: {str(e)}"
+
+    def find_current_user(self, text):
+        try:
+            # OpenAI GPT model to identify the username
+                
+            prompt = f"Extract the username from this text :'{text}' and just only give username in response nothing else"
+            logging.info("im here ")
+            # Call OpenAI API to generate a response (updated for new API interface)
+            response = openai.chat.completions.create(
+                model="gpt-3.5-turbo",  # Use an appropriate model
+                messages=[
+                    {"role": "system", "content": "You are a helpful assistant."},
+                    {"role": "user", "content": prompt},
+                ],
+            )
+            logging.info(f"response {response}")
+            
+            # Parse the response
+            extracted_username = response.choices[0].message.content.strip().lower()
+            logging.info(f"username {extracted_username}")
+            # If we found a valid username, retrieve user details
+            if extracted_username:
+                user_details = self.db.get_user_by_username(extracted_username)
+                if user_details:
+                    self.user_id=user_details['user_id']
+                    self.username=extracted_username
+                    return f"Current user: {extracted_username} (ID: {user_details['user_id']})"
+                else:
+                    return "User not found."
+            return "No valid username detected in the input."
+        
+        except Exception as e:
+            return f"Error processing the current user. Details: {str(e)}"
 
     def show_help(self, text):
         return """
@@ -121,6 +229,7 @@ class VoiceBot:
     - Transfer money: "Transfer $100 to John" or "Send $100 to John"
     - Help: "Show help"
         """
+
 
 
     def process_user_input(self):

@@ -27,6 +27,8 @@ RESPONSE_TEMPLATES = {
 }
 # config/config.py
 CANDIDATE_INTENTS = [
+    "current_user",
+    "show_users",
     "greeting",
     "balance_inquiry",
     "transaction_history",
@@ -34,12 +36,15 @@ CANDIDATE_INTENTS = [
     "help"
 ]
 
-INTENT_EXAMPLES = {
-    "greeting": ["hello", "hi", "hey", "good morning", "good evening"],
-    "balance_inquiry": ["what's my balance", "show balance", "account balance"],
-    "transaction_history": ["show transactions", "recent transactions", "transaction history"],
-    "goodbye": ["bye", "goodbye", "see you", "exit"],
-    "help": ["help", "support", "assist", "what can you do"]
+INTENT_DESCRIPTIONS = {
+    "current_user": "display current user",
+    "show_users": "display or list all users in the system",
+    "greeting": "say hello or start conversation",
+    "balance_inquiry": "check account balance",
+    "transaction_history": "view transaction history",
+    "help": "request assistance or information",
+    "goodbye": "end conversation",
+    "unknown": "unclear or undefined request"
 }
 from google.cloud import texttospeech
 

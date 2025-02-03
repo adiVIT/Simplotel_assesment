@@ -89,7 +89,7 @@ class VoiceBot:
             logging.info(f"username {extracted_text}")
             logging.info(f"amount {extracted_data}")
             # Get extracted username and amount
-            to_username = extracted_data.get("username", "").strip()
+            to_username = extracted_data.get("username", "").strip().lower()
             amount = float(extracted_data.get("amount", 0))
             from_username=self.username
             # Validate extracted data
@@ -156,7 +156,7 @@ class VoiceBot:
         try:
             # OpenAI GPT model to identify the username
                 
-            prompt = f"Extract the changed username from this text :'{text}' and just only give username in response nothing else"
+            prompt = f"Extract the changed username from this text :'{text}' i just need username make sure not to give anything else except that just give one word and that should be username"
             logging.info("im here ")
             # Call OpenAI API to generate a response (updated for new API interface)
             response = openai.chat.completions.create(
@@ -189,7 +189,7 @@ class VoiceBot:
         try:
             # OpenAI GPT model to identify the username
                 
-            prompt = f"Extract the username from this text :'{text}' and just only give username in response nothing else"
+            prompt = f"Extract the username from this text :'{text}' i just need username make sure not to give anything else except that just give one word and that should be username"
             logging.info("im here ")
             # Call OpenAI API to generate a response (updated for new API interface)
             response = openai.chat.completions.create(
